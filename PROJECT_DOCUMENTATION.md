@@ -1,7 +1,8 @@
 # EVA — Behaviour-Based Desktop Companion Robot
 
 **Full Project Documentation**
-Version: 0.9.0 (Stages 0.1 – 1.2 implemented) · Platform: ESP32 DevKit / ESP32-WROOM · IDE: Arduino IDE
+**Release v1.2**
+Version: 1.2.0 (Stages 0.1 – 1.2 implemented) · Platform: ESP32 DevKit / ESP32-WROOM · IDE: Arduino IDE
 
 ---
 
@@ -16,6 +17,17 @@ Sensor → Interpretation → Behaviour → Emotion → Expression / Movement / 
 ```
 
 No sensor is ever allowed to trigger a motor, a mood, or a light directly. That rule is enforced structurally by the code architecture, not just by convention — see §3.
+
+### v1.2 stability updates
+
+The current release includes several practical fixes that were noted during the project's later refinement pass:
+
+- the Bluetooth command layer is now a single always-on control channel for mode switching, time/alarm commands, and RC driving
+- RC packet handling distinguishes raw movement commands from buffered text commands, reducing accidental misclassification
+- the RC watchdog now stops the motors if the Bluetooth link drops mid-drive
+- sleep mode keeps the eye state stable instead of reopening unexpectedly during the idle loop
+- touch event handling is consume-once and rate-limited, preventing tap/petting events from being replayed multiple times in a single loop cycle
+- the Clock alarm setup flow now advances one logical step per tap instead of skipping values because of event replay bugs
 
 ---
 

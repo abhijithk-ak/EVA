@@ -1,6 +1,6 @@
 # EVA — Behaviour-Based Desktop Companion Robot
 
-Release v1.1
+Release v1.2
 
 EVA is a small ESP32-powered desktop companion robot designed to feel alive through behaviour, emotion, movement, lighting, and sound rather than through random motion or simple obstacle avoidance.
 
@@ -153,9 +153,21 @@ For full wiring, calibration, and troubleshooting details, see [PROJECT_DOCUMENT
 
 ---
 
-## Status: v1.1
+## What's new in v1.2
 
-This release represents the complete v1.1 feature set:
+This release includes the stability and usability fixes that were noted during the v1.2 implementation pass:
+
+- unified one-channel Bluetooth control for mode switching, alarm setup, time commands, and RC driving
+- safer RC parsing so a single raw control byte is treated as an immediate command instead of being misclassified as a text line
+- Bluetooth safety watchdog to stop EVA if the RC link drops mid-drive
+- sleep-mode eye rendering fix so sleepy closed eyes remain stable instead of reopening unexpectedly
+- touch event consumption fix to prevent repeated tap/petting events from being replayed across loops
+- alarm setup adjustments to make tap-driven hour/minute editing advance by one logical step instead of skipping values
+- stronger mode transition handling through the shared mode engine and more predictable wake/sleep flow
+
+## Status: v1.2
+
+This release represents the complete v1.2 feature set:
 
 - autonomous behaviour loop
 - touch and sound response system
@@ -164,6 +176,7 @@ This release represents the complete v1.1 feature set:
 - clock and alarm support
 - sleep and wake transitions
 - RC driving via Bluetooth
+- Bluetooth safety and command handling improvements
 - mood light and buzzer feedback
 
 The project is ready as a working desktop companion robot prototype for experimentation, refinement, and extension.
