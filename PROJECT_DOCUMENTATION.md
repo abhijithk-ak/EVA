@@ -1,8 +1,7 @@
 # EVA — Behaviour-Based Desktop Companion Robot
 
 **Full Project Documentation**
-**Release v1.2**
-Version: 1.2.0 (Stages 0.1 – 1.2 implemented) · Platform: ESP32 DevKit / ESP32-WROOM · IDE: Arduino IDE
+Version: 1.0.0 (EMO-Style Behaviour Architecture Implemented) · Platform: ESP32 DevKit / ESP32-WROOM · IDE: Arduino IDE
 
 ---
 
@@ -13,21 +12,13 @@ EVA is a small desktop companion robot whose behaviour is designed to feel **int
 Every output EVA produces (movement, expression, light, sound) is the result of a strict one-way pipeline:
 
 ```
-Sensor → Interpretation → Behaviour → Emotion → Expression / Movement / Light / Sound
+Sensor → Interpretation → Behaviour → Continuous Emotion Engine → Subsystem Outputs (Expression / Movement / Light / Sound)
 ```
 
 No sensor is ever allowed to trigger a motor, a mood, or a light directly. That rule is enforced structurally by the code architecture, not just by convention — see §3.
 
-### v1.2 stability updates
+In Version 1.0.0, EVA uses an **EMO-Style Continuous Internal Emotion Engine** (`valence`, `arousal`, `trust`, `boredom`) with continuous frame decay toward resting baseline. Subsystems read `EmotionState` independently, movement speed scales dynamically with arousal, and prolonged stillness triggers non-blocking bitmap takeover animations via `BoredomAnimationManager`.
 
-The current release includes several practical fixes that were noted during the project's later refinement pass:
-
-- the Bluetooth command layer is now a single always-on control channel for mode switching, time/alarm commands, and RC driving
-- RC packet handling distinguishes raw movement commands from buffered text commands, reducing accidental misclassification
-- the RC watchdog now stops the motors if the Bluetooth link drops mid-drive
-- sleep mode keeps the eye state stable instead of reopening unexpectedly during the idle loop
-- touch event handling is consume-once and rate-limited, preventing tap/petting events from being replayed multiple times in a single loop cycle
-- the Clock alarm setup flow now advances one logical step per tap instead of skipping values because of event replay bugs
 
 ---
 
@@ -41,35 +32,32 @@ The current release includes several practical fixes that were noted during the 
 | Motors | 2× DC N20 geared, no encoders | Driven via DRV8833 |
 | Motor driver | DRV8833 | 4 direction/PWM pins |
 | Spatial sensor | VL53L0X ToF | Mounted at a downward angle |
-| Touch | Capacitive/metal plate | ESP32 `touchRead()`, GPIO4 |
-| Microphone | MAX9814 | Analog envelope out, environmental awareness only |
-| Mood light | WS2812 (NeoPixel) | 1 LED by default, expandable |
-| Buzzer | Passive buzzer | `tone()`/`noTone()` driven |
+| Touch | Capacitive/metal plate | ESP32 `touchRead()`, GPIO 4 |
+| Mood light | WS2812 (NeoPixel) | 1 LED by default, expandable (GPIO 27) |
+| Buzzer | Passive buzzer | Dedicated LEDC PWM channel 4 (GPIO 14) |
 | Optional | SG90 servo | Not wired by default (`SERVO_ENABLED = false` in Config.h) |
 
 ### 2.1 Pinout (ESP32 DevKit)
 
-| Signal | GPIO | Notes |
+| Signal | GPIO | Hardware Function / Channel |
 |---|---|---|
-| I2C SDA (OLED + VL53L0X) | 21 | Shared bus, different addresses |
-| I2C SCL | 22 | |
-| Motor: Left Forward | 25 | PWM (LEDC channel 0) |
-| Motor: Left Backward | 26 | PWM (LEDC channel 1) |
-| Motor: Right Backward | 32 | PWM (LEDC channel 2) |
-| Motor: Right Forward | 33 | PWM (LEDC channel 3) |
-| Touch plate | 4 | `touchRead()` capable (T0) |
-| Microphone (MAX9814 OUT) | 34 | ADC1, input-only pin |
-| Mood light (WS2812 DIN) | 27 | |
-| Buzzer | 14 | |
+| I2C SDA (OLED + VL53L0X) | 21 | Shared I2C Bus (Addresses `0x3C` & `0x29`) |
+| I2C SCL (OLED + VL53L0X) | 22 | Shared I2C Bus |
+| Motor: Left Forward | 25 | DRV8833 IN1 (LEDC PWM Channel 0) |
+| Motor: Left Backward | 26 | DRV8833 IN2 (LEDC PWM Channel 1) |
+| Motor: Right Backward | 32 | DRV8833 IN3 (LEDC PWM Channel 2) |
+| Motor: Right Forward | 33 | DRV8833 IN4 (LEDC PWM Channel 3) |
+| Touch plate | 4 | Touch0 (`touchRead()` Capacitive) |
+| Mood light (WS2812 DIN) | 27 | FastLED / NeoPixel Data Line |
+| Buzzer | 14 | Passive Buzzer (LEDC PWM Channel 4) |
 | Servo (optional) | 13 | Disabled by default |
 
-All pins are centralised in `Config.h` — nothing else in the firmware hard-codes a GPIO number.
+All pins are centralized in `src/Config.h` — nothing else in the firmware hard-codes a GPIO number.
 
 ### 2.2 Calibration required before first use
 
 - **VL53L0X thresholds** (`TOF_OBSTACLE_MM` = 95, `TOF_EDGE_MM` = 150 in `Config.h`) depend entirely on the sensor's mounting angle and desk surface. Recalibrate on the physical chassis.
 - **Touch baseline** is dynamic (an exponential moving average seeded at boot), but the trigger ratio (`TOUCH_TRIGGER_RATIO`) and idle reading may need adjusting per touch plate/material.
-- **Microphone thresholds** (`MIC_LOUD_RATIO`) depend on the MAX9814 gain setting and room acoustics.
 
 ---
 
@@ -91,51 +79,40 @@ All pins are centralised in `Config.h` — nothing else in the firmware hard-cod
              └────────┬────────┘
                        │
             ┌──────────┴──────────┐
-            ▼                     ▼
-    ┌──────────────┐      ┌──────────────┐
-    │EmotionEngine │      │MovementEngine│
-    └──────┬───────┘      └──────────────┘
-           │
- ┌─────────┼──────────┐
- ▼         ▼          ▼
-RoboEyes  MoodLight  Buzzer
-   │
-   ▼
-  OLED
-```
-
-Sensors feed **interpretation-only** managers, never behaviour directly:
+            ▼               Sensors feed **interpretation-only** managers, never behaviour directly:
 
 ```
 VL53L0X ──► SensorManager  ──┐
-Touch   ──► TouchManager   ──┼──► BehaviourEngine
-MAX9814 ──► SoundManager   ──┘
+Touch   ──► TouchManager   ──┴──► BehaviourEngine
 ```
 
-### 3.1 File map
+### 3.1 File map (`src/` Directory)
+
+All firmware C++ and Arduino header files reside in the [`src/`](file:///c:/Users/Admin/OneDrive/Desktop/Evav2claude/EVA/src) directory:
 
 | File | Responsibility |
 |---|---|
-| `EVA.ino` | Hardware bring-up, object wiring, `setup()`/`loop()` only |
-| `Config.h` | Every pin, threshold, and timing constant in the project |
-| `Types.h` | Shared enums (`EvaEmotion`, `EvaBehaviour`, `EvaMode`, `MoveState`, sensor events) |
-| `Logger.h` | Zero-cost-when-disabled debug logging |
-| `EmotionEngine.h` | Combines official RoboEyes primitives into EVA emotions |
-| `BehaviourEngine.h` | Central "alive" state machine — idle/curiosity cycle + reactions |
-| `MovementEngine.h/.cpp` | Non-blocking, timed, open-loop motor control |
-| `SensorManager.h/.cpp` | VL53L0X → `SpatialEvent` (CLEAR/OBSTACLE/EDGE) |
-| `TouchManager.h/.cpp` | Capacitive touch → `TouchEvent` (TAP/PETTING/LONG_HOLD), dynamic baseline |
-| `SoundManager.h/.cpp` | MAX9814 envelope → `SoundEvent` (CLAP/LOUD_NOISE/MUSIC_LIKE) |
-| `MoodLightManager.h/.cpp` | WS2812 solid/pulse effects, emotion → colour mapping |
-| `BuzzerManager.h/.cpp` | Non-blocking note-sequence player, emotion → sound mapping |
-| `ClockService.h/.cpp` | Wi-Fi, NTP time, alarm, weather (Open-Meteo), quote (ZenQuotes), offline fallback |
-| `Mode.h` | Abstract interface implemented by all 5 modes |
-| `ModeEngine.h` | Owns the active mode, applies global transition rules |
-| `ModeEva.h` | Mode 1 |
-| `ModePet.h` | Mode 2 |
-| `ModeClock.h/.cpp` | Mode 3 |
-| `ModeSleep.h` | Mode 4 |
-| `ModeRC.h` | Mode 5 |
+| `src/EVA.ino` | Hardware bring-up, object wiring, `setup()`/`loop()` only |
+| `src/Config.h` | Every pin, threshold, and timing constant in the project (Ignored by Git) |
+| `src/Config.example.h` | Template configuration file for Wi-Fi and location settings |
+| `src/Types.h` | Shared enums (`EvaEmotion`, `EvaBehaviour`, `EvaMode`, `MoveState`, sensor events, `IEmotionRunner`) |
+| `src/Logger.h` | Zero-cost-when-disabled debug logging |
+| `src/EmotionEngine.h` | Combines official RoboEyes primitives into EVA emotions |
+| `src/BehaviourEngine.h` | Central "alive" state machine — idle/curiosity cycle + reactions |
+| `src/MovementEngine.h/.cpp` | Non-blocking, timed, open-loop motor control |
+| `src/SensorManager.h/.cpp` | VL53L0X → `SpatialEvent` (CLEAR/OBSTACLE/EDGE) |
+| `src/TouchManager.h/.cpp` | Capacitive touch → `TouchEvent` (TAP/PETTING/LONG_HOLD), dynamic baseline |
+| `src/MoodLightManager.h/.cpp` | WS2812 solid/pulse effects, emotion → colour mapping |
+| `src/BuzzerManager.h/.cpp` | Non-blocking note-sequence player, emotion → sound mapping |
+| `src/BoredomAnimationManager.h` | Non-blocking bitmap takeover animation player & Dino jump game |
+| `src/ClockService.h/.cpp` | Wi-Fi, NTP time, alarm, weather (Open-Meteo), quote (ZenQuotes), offline fallback |
+| `src/Mode.h` | Abstract interface implemented by all 5 modes |
+| `src/ModeEngine.h` | Owns the active mode, applies global transition rules |
+| `src/ModeEva.h` | Mode 1 (Autonomous Companion) |
+| `src/ModePet.h` | Mode 2 (Touch-Only Resting) |
+| `src/ModeClock.h/.cpp` | Mode 3 (Clock & Weather) |
+| `src/ModeSleep.h` | Mode 4 (Sleep Mode) |
+| `src/ModeRC.h` | Mode 5 (Bluetooth Remote Control) |
 
 ### 3.2 Why templates are used (and where)
 
@@ -146,11 +123,11 @@ EmotionEngine<decltype(roboEyes)>   emotion(roboEyes);
 BehaviourEngine<decltype(emotion)>  behaviour(emotion, movement, light, buzzer);
 ```
 
-Everything downstream of `BehaviourEngine` (movement, light, buzzer, sensors) uses concrete, non-templated classes — templates are used only where the RoboEyes type genuinely needs to be threaded through, keeping the rest of the codebase simple and readable (a stated project goal, since this is also a C++ learning project).
+Everything downstream of `BehaviourEngine` (movement, light, buzzer, sensors) uses concrete, non-templated classes — templates are used only where the RoboEyes type genuinely needs to be threaded through, keeping the rest of the codebase simple and readable.
 
 ### 3.3 Non-blocking design
 
-No file uses `delay()` in any runtime path. Every timed behaviour (movement duration, temporary emotion effects like sweat/flicker, buzzer note sequences, mood-light pulsing, touch/petting classification, sleep's periodic time display) is implemented as a `millis()`-based timer compared against a stored start time. The only `delay()` calls in the whole project are one-time, boot-time sensor-baseline-seeding calls in `TouchManager::begin()` / `SoundManager::begin()`, which are explicitly commented as such.
+No file uses `delay()` in any runtime path. Every timed behaviour (movement duration, temporary emotion effects like sweat/flicker, buzzer note sequences, mood-light pulsing, touch/petting classification, sleep's periodic time display) is implemented as a `millis()`-based timer compared against a stored start time. The only `delay()` calls in the whole project are one-time, boot-time sensor-baseline-seeding calls in `TouchManager::begin()`, which are explicitly commented as such.
 
 ---
 
@@ -184,6 +161,16 @@ IDLE  ──(been still for a while, randomised timing)──►  CURIOUS
 CURIOUS ──(look, and ~60% of the time move)──► WANDER ──► IDLE
 IDLE (still idle for BEHAVIOUR_SLEEPY_AFTER_MS) ──► SLEEPY ──► (Mode switches to Sleep)
 ```
+
+Reactive events (obstacle, edge, touch) pre-empt this cycle, run for a fixed "busy" window (with an intentional matching emotion + light + sound), and then automatically hand control back to the idle/curiosity cycle:
+
+| Trigger | Behaviour | Emotion | Movement |
+|---|---|---|---|
+| Obstacle (< 95 mm) | `OBSTACLE_AVOID` | Scared | Stop, pivot away |
+| Edge (> 150 mm / out of range) | `EDGE_AVOID` | Scared | Stop, back away |
+| Tap | `TOUCH_REACT` | Happy | — |
+| Petting (5–10 s) | `TOUCH_REACT` | Angry | — |
+| Long hold (> 20 s) | → Sleep Mode | Sleepy | — |
 
 Reactive events (obstacle, edge, touch, sound) pre-empt this cycle, run for a fixed "busy" window (with an intentional matching emotion + light + sound), and then automatically hand control back to the idle/curious cycle:
 
@@ -263,11 +250,12 @@ MODE RC
 | WiFi, HTTPClient | Bundled with the ESP32 core |
 
 ### 7.3 Flashing
-1. Open `EVA.ino` (keep every file in this documentation's file map inside the same `EVA/` sketch folder — Arduino requires that).
-2. Fill in `WIFI_SSID` / `WIFI_PASSWORD` in `Config.h` if you want Clock Mode online (optional — everything else works with these left blank).
-3. Set `GMT_OFFSET_SEC` and `WEATHER_LATITUDE`/`WEATHER_LONGITUDE` in `Config.h` for your location.
-4. Upload.
-5. Open Serial Monitor at 115200 baud to see boot logs and to send `MODE ...` commands.
+1. Open `src/EVA.ino` in Arduino IDE.
+2. Copy `src/Config.example.h` to `src/Config.h`.
+3. Fill in `WIFI_SSID` / `WIFI_PASSWORD` in `src/Config.h` if you want Clock Mode online (optional — everything else works with these left blank).
+4. Set `GMT_OFFSET_SEC` and `WEATHER_LATITUDE`/`WEATHER_LONGITUDE` in `src/Config.h` for your location.
+5. Upload to ESP32 Dev Module.
+6. Open Serial Monitor at 115200 baud to see boot logs and to send `MODE ...` commands.
 
 ### 7.4 A note on the ESP32 Arduino core version
 `MovementEngine::begin()` uses the classic `ledcSetup()`/`ledcAttachPin()`/`ledcWrite()` API (Arduino-ESP32 core v2.x). If you are on core v3.x, replace those three calls with the newer single-call `ledcAttach(pin, freq, resolutionBits)` + `ledcWrite(pin, duty)` API — the rest of `MovementEngine` is unaffected either way.
@@ -281,8 +269,7 @@ MODE RC
 - Leave EVA alone and it will idle, occasionally look around (curiosity), and settle back down — timing is randomised so it never feels mechanical.
 - Bring a hand or object close to the front sensor and EVA will react (stop/turn away) and show a startled expression.
 - Tap the touch plate for a quick, happy reaction.
-- Clap near EVA for a curious reaction; a sudden bang/knock gets a startled reaction; play music nearby for a happy reaction.
-- Leave EVA alone long enough (2 minutes of continuous idle) and it will get sleepy and go to sleep on its own; you can also hold the touch plate for 20+ seconds to send it to sleep immediately.
+- Leave EVA alone long enough (2 minutes of continuous idle) and it will get sleepy and go to sleep on its own; you can also hold the touch plate for 5+ seconds to send it to sleep immediately.
 - Tap EVA while it's asleep to wake it back into Mode 1.
 
 ### 8.2 Pet Mode
@@ -292,15 +279,14 @@ Switch to Pet Mode (`MODE PET` over serial, or your own trigger) when you don't 
 Switch to Clock Mode to use EVA as a desk clock with alarm. If Wi-Fi credentials are set in `Config.h`, it will also show a rotating weather reading and short quote. Pet the touch plate to enter alarm setup, tap to adjust, pet again to confirm (or wait 8 seconds and it auto-confirms).
 
 ### 8.4 RC Mode
-Switch to RC Mode, then pair a Bluetooth RC-car style Android app to **"EVA-RC"** and drive EVA manually. EVA will automatically stop if the Bluetooth link drops.
+Switch to RC Mode, then pair the native **EVA Robot** companion app to **"EVA"** and drive EVA manually. EVA will automatically stop if the Bluetooth link drops.
 
 ### 8.5 Calibration checklist (first-time setup)
 1. Place EVA on its actual desk/chassis, powered and stationary.
-2. Watch Serial output for the seeded touch and microphone baselines.
+2. Watch Serial output for the seeded touch baseline.
 3. Trigger the touch plate and confirm TAP/PETTING/LONG_HOLD are detected as expected; adjust `TOUCH_TRIGGER_RATIO` if needed.
 4. Wave a hand in front of the VL53L0X at your intended "too close" distance and confirm an OBSTACLE reaction; adjust `TOF_OBSTACLE_MM`.
 5. Move EVA to the edge of the desk and confirm an EDGE reaction; adjust `TOF_EDGE_MM`.
-6. Clap/knock near the microphone and confirm reactions fire without excessive false positives; adjust `MIC_LOUD_RATIO`.
 
 ---
 
@@ -308,7 +294,6 @@ Switch to RC Mode, then pair a Bluetooth RC-car style Android app to **"EVA-RC"*
 
 - **No encoders** on the drive motors: all movement is timed and open-loop, not precision navigation. Distance/rotation are approximate.
 - **VL53L0X mounted downward** must serve double duty (obstacle + edge); the two thresholds require physical calibration and can conflict on unusual surfaces.
-- **MAX9814 sound detection** is coarse, threshold/peak-based pattern matching — not real audio classification, and there is no speech recognition of any kind.
 - **Touch readings** vary with environment, humidity, and the specific plate material; the dynamic baseline mitigates but does not eliminate this.
 - **Clock Mode's online features** (weather/quote) depend on network availability and free third-party APIs (Open-Meteo, ZenQuotes) that may change or rate-limit; offline defaults always keep the clock itself functional.
 - **RC Mode requires classic Bluetooth**, so it will not run on ESP32-S3/C3 boards (BLE-only) — use a classic ESP32/ESP32-WROOM.

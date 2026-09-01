@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVA Robot Command Center</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-dark: #080b11;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(0, 242, 254, 0.15);
+            --primary: #00f2fe;
+            --primary-glow: rgba(0, 242, 254, 0.4);
+            --secondary: #4facfe;
+            --accent-purple: #7f00ff;
+            --accent-pink: #ff007f;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(127, 0, 255, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 242, 254, 0.12) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* App Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(8, 11, 17, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .brand-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-title p {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--danger);
+            box-shadow: 0 0 10px var(--danger);
+            transition: all 0.3s;
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .btn-connect {
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--primary);
+            background: rgba(0, 242, 254, 0.1);
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s;
+        }
+
+        .btn-connect:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+            flex: 1;
+        }
+
+        /* Navigation Tabs */
+        .tab-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(18, 24, 38, 0.5);
+            padding: 6px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--card-border);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            white-space: nowrap;
+            transition: all 0.25s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(127, 0, 255, 0.2));
+            color: #fff;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Section Layouts */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mode Selector Grid */
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 14px 8px;
+            border-radius: var(--radius-md);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            backdrop-filter: blur(10px);
+        }
+
+        .mode-card i {
+            font-size: 20px;
+            color: var(--secondary);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .mode-card span {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .mode-card:hover, .mode-card.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+
+        /* RC Card Layout - Vertical Column Stack */
+        .rc-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .rc-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            width: 100%;
+        }
+
+        /* Joystick Section */
+        .joystick-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .joystick-base {
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(0, 242, 254, 0.05) 0%, rgba(18, 24, 38, 0.9) 70%);
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            position: relative;
+            touch-action: none;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.15), inset 0 0 20px rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .joystick-stick {
+            width: 75px;
+            height: 75px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 20px var(--primary-glow);
+            cursor: pointer;
+            transition: transform 0.05s linear;
+        }
+
+        .joystick-label {
+            margin-top: 15px;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* RC Speed & Controls Section */
+        .rc-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .control-group {
+            background: rgba(8, 11, 17, 0.6);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .slider-input {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #1e293b;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .dpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            width: 210px;
+            height: 210px;
+            margin: 0 auto;
+        }
+
+        .dpad-btn {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            background: rgba(30, 41, 59, 0.75);
+            color: #fff;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .dpad-btn:active, .dpad-btn.active {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .btn-stop {
+            background: var(--danger) !important;
+            border-color: var(--danger) !important;
+            font-weight: 700 !important;
+            font-size: 12px !important;
+            color: #fff !important;
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.4) !important;
+        }
+
+        /* Clock & Alarm UX Page */
+        .clock-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .card-header i {
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .card-header h2 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .picker-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .time-input, .date-input {
+            flex: 1;
+            background: rgba(8, 11, 17, 0.8);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            color: #fff;
+            font-size: 18px;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+            outline: none;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 14px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #000;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.25s;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .input-text {
+            width: 100%;
+            background: rgba(8, 11, 17, 0.8);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 12px;
+        }
+
+        .terminal-card {
+            margin-top: 20px;
+            background: #05070a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .terminal-logs {
+            height: 120px;
+            overflow-y: auto;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-line.tx { color: var(--primary); }
+        .log-line.rx { color: var(--success); }
+        .log-line.err { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <img src="logo.png" class="brand-icon-img" alt="EVA Logo">
+            <div class="brand-title">
+                <h1>EVA COMPANION</h1>
+                <p>Bluetooth Command & Control</p>
+            </div>
+        </div>
+
+        <div class="connection-status">
+            <div class="status-dot" id="statusDot"></div>
+            <button class="btn-connect" id="connectBtn" onclick="toggleConnect()">
+                <i class="fa-solid fa-plug"></i>
+                <span id="connectText">Connect BLE</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+
+        <!-- Mode Quick Selector -->
+        <div class="mode-grid">
+            <div class="mode-card" onclick="sendCommand('MODE EVA')">
+                <i class="fa-solid fa-eye"></i>
+                <span>MODE EVA</span>
+            </div>
+            <div class="mode-card" onclick="sendCommand('MODE PET')">
+                <i class="fa-solid fa-heart"></i>
+                <span>MODE PET</span>
+            </div>
+            <div class="mode-card" onclick="sendCommand('MODE CLOCK')">
+                <i class="fa-solid fa-clock"></i>
+                <span>MODE CLOCK</span>
+            </div>
+            <div class="mode-card" onclick="sendCommand('MODE SLEEP')">
+                <i class="fa-solid fa-moon"></i>
+                <span>MODE SLEEP</span>
+            </div>
+            <div class="mode-card" onclick="sendCommand('MODE RC')">
+                <i class="fa-solid fa-gamepad"></i>
+                <span>MODE RC</span>
+            </div>
+        </div>
+
+        <!-- Special Action Tricks & Play Triggers -->
+        <div class="mode-grid" style="margin-bottom: 20px;">
+            <div class="mode-card" style="border-color: var(--primary);" onclick="sendCommand('DANCE')">
+                <i class="fa-solid fa-music" style="color: var(--primary);"></i>
+                <span>💃 Dance</span>
+            </div>
+            <div class="mode-card" style="border-color: var(--success);" onclick="sendCommand('TRICK')">
+                <i class="fa-solid fa-rotate-right" style="color: var(--success);"></i>
+                <span>🌀 Spin Trick</span>
+            </div>
+            <div class="mode-card" style="border-color: var(--danger);" onclick="sendCommand('CARE')">
+                <i class="fa-solid fa-ghost" style="color: var(--danger);"></i>
+                <span>😱 Scare / Boo</span>
+            </div>
+            <div class="mode-card" style="border-color: var(--accent-purple);" onclick="sendCommand('RANDOM')">
+                <i class="fa-solid fa-dice" style="color: var(--accent-purple);"></i>
+                <span>🎲 Random Mood</span>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('rcTab', this)">
+                <i class="fa-solid fa-gamepad"></i> RC Drive
+            </button>
+            <button class="tab-btn" onclick="switchTab('animTab', this)">
+                <i class="fa-solid fa-film"></i> Animations
+            </button>
+            <button class="tab-btn" onclick="switchTab('clockTab', this)">
+                <i class="fa-solid fa-clock"></i> Clock & Alarm UX
+            </button>
+            <button class="tab-btn" onclick="switchTab('systemTab', this)">
+                <i class="fa-solid fa-sliders"></i> Display & Volume
+            </button>
+        </div>
+
+        <!-- TAB 1: RC Drive -->
+        <div id="rcTab" class="tab-content active">
+            <div class="rc-container">
+                <div class="rc-card">
+                    <!-- Top: Touch Joystick Zone -->
+                    <div class="joystick-zone">
+                        <div class="joystick-base" id="joyBase">
+                            <div class="joystick-stick" id="joyStick"></div>
+                        </div>
+                        <div class="joystick-label">
+                            <i class="fa-solid fa-hand-pointer"></i> Drag to Drive • Release to Stop ("S")
+                        </div>
+                    </div>
+
+                    <!-- Bottom: Speed Controls & D-Pad -->
+                    <div class="rc-controls">
+                        <div class="control-group">
+                            <label>
+                                <span><i class="fa-solid fa-gauge-high"></i> Motor Speed</span>
+                                <span id="speedVal">200</span>
+                            </label>
+                            <input type="range" class="slider-input" min="120" max="255" value="200" id="speedSlider" oninput="updateSpeed(this.value)">
+                        </div>
+
+                        <!-- Manual Aligned D-Pad -->
+                        <div class="dpad-grid">
+                            <div></div>
+                            <button class="dpad-btn" onmousedown="startDriveRepeat('F')" onmouseup="startDriveRepeat('S')" ontouchstart="startDriveRepeat('F')" ontouchend="startDriveRepeat('S')" ontouchcancel="startDriveRepeat('S')">
+                                <i class="fa-solid fa-chevron-up"></i>
+                            </button>
+                            <div></div>
+
+                            <button class="dpad-btn" onmousedown="startDriveRepeat('L')" onmouseup="startDriveRepeat('S')" ontouchstart="startDriveRepeat('L')" ontouchend="startDriveRepeat('S')" ontouchcancel="startDriveRepeat('S')">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <button class="dpad-btn btn-stop" onclick="startDriveRepeat('S')">
+                                STOP
+                            </button>
+                            <button class="dpad-btn" onmousedown="startDriveRepeat('R')" onmouseup="startDriveRepeat('S')" ontouchstart="startDriveRepeat('R')" ontouchend="startDriveRepeat('S')" ontouchcancel="startDriveRepeat('S')">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+
+                            <div></div>
+                            <button class="dpad-btn" onmousedown="startDriveRepeat('B')" onmouseup="startDriveRepeat('S')" ontouchstart="startDriveRepeat('B')" ontouchend="startDriveRepeat('S')" ontouchcancel="startDriveRepeat('S')">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            <div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Takeover Animations & Mini Game -->
+        <div id="animTab" class="tab-content">
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-header">
+                    <i class="fa-solid fa-film"></i>
+                    <h2>OLED Takeover Animations & Enable Switch</h2>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                    <button class="btn-action" style="background: var(--success);" onclick="sendCommand('ANIM ON')">
+                        <i class="fa-solid fa-toggle-on"></i> Animations ON (Default)
+                    </button>
+                    <button class="btn-action btn-secondary" style="border-color: var(--danger); color: var(--danger);" onclick="sendCommand('ANIM OFF')">
+                        <i class="fa-solid fa-toggle-off"></i> Animations OFF
+                    </button>
+                </div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                    Trigger full-screen pixel takeover animations on EVA's display (plays for random 10–30s).
+                </p>
+                <div class="mode-grid">
+                    <div class="mode-card" style="border-color: var(--primary);" onclick="sendCommand('ANIM DINO')">
+                        <i class="fa-solid fa-dragon" style="color: var(--primary);"></i>
+                        <span>🦖 Dino Jump</span>
+                    </div>
+                    <div class="mode-card" style="border-color: var(--success);" onclick="sendCommand('ANIM PULLUPS')">
+                        <i class="fa-solid fa-dumbbell" style="color: var(--success);"></i>
+                        <span>💪 Pull-ups</span>
+                    </div>
+                    <div class="mode-card" style="border-color: var(--accent-pink);" onclick="sendCommand('ANIM MUSIC')">
+                        <i class="fa-solid fa-music" style="color: var(--accent-pink);"></i>
+                        <span>🎵 Music Party</span>
+                    </div>
+                    <div class="mode-card" style="border-color: var(--secondary);" onclick="sendCommand('ANIM SNOW')">
+                        <i class="fa-solid fa-snowflake" style="color: var(--secondary);"></i>
+                        <span>❄️ Snowfall</span>
+                    </div>
+                    <div class="mode-card" style="border-color: var(--accent-purple);" onclick="sendCommand('ANIM CAR')">
+                        <i class="fa-solid fa-car" style="color: var(--accent-purple);"></i>
+                        <span>🚗 Car Cruise</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dino Mini-Game Card -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fa-solid fa-gamepad"></i>
+                    <h2>Interactive Dino Jump Mini-Game</h2>
+                </div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                    Play the Dino Runner game directly on EVA's OLED screen! Tap JUMP to hop over cacti.
+                </p>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-action" style="background: var(--primary); flex: 1;" onclick="sendCommand('GAME DINO')">
+                        <i class="fa-solid fa-play"></i> Start Dino Game
+                    </button>
+                    <button class="btn-action" style="background: var(--success); flex: 1; font-weight: 800;" onclick="sendCommand('GAME JUMP')">
+                        <i class="fa-solid fa-arrow-up"></i> JUMP!
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- TAB 3: Mobile Clock & Alarm UX -->
+        <div id="clockTab" class="tab-content">
+            <div class="clock-card-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-rotate"></i>
+                        <h2>System Time & Date Sync</h2>
+                    </div>
+
+                    <div class="picker-group">
+                        <input type="time" id="timeInput" class="time-input">
+                        <input type="date" id="dateInput" class="date-input">
+                    </div>
+
+                    <button class="btn-action" onclick="syncCurrentDeviceTime()">
+                        <i class="fa-solid fa-bolt"></i> Auto-Sync Device Time & Date
+                    </button>
+                    <div style="height: 10px;"></div>
+                    <button class="btn-action btn-secondary" onclick="sendCustomTimeDate()">
+                        <i class="fa-solid fa-paper-plane"></i> Send Custom Time & Date
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-bell"></i>
+                        <h2>Alarm Setup</h2>
+                    </div>
+
+                    <div class="picker-group">
+                        <input type="time" id="alarmTimeInput" class="time-input" value="07:00">
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-action" onclick="setAlarm(true)">
+                            <i class="fa-solid fa-bell"></i> Enable Alarm
+                        </button>
+                        <button class="btn-action btn-secondary" style="border-color: var(--danger); color: var(--danger);" onclick="setAlarm(false)">
+                            <i class="fa-solid fa-bell-slash"></i> Disable
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: System & Wi-Fi Controls -->
+        <div id="systemTab" class="tab-content">
+            <div class="clock-card-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-sliders"></i>
+                        <h2>Buzzer Volume & OLED Brightness</h2>
+                    </div>
+
+                    <div class="setting-row">
+                        <div style="display: flex; justify-content: space-between; width: 100%; font-size: 13px; font-weight: 600; margin-bottom: 8px;">
+                            <span>Buzzer Volume</span>
+                            <span id="volLabel" style="color: var(--primary);">180</span>
+                        </div>
+                    </div>
+                    <input type="range" class="slider-input" min="0" max="255" value="180" id="volSlider" oninput="updateVolume(this.value)" style="margin-bottom: 24px;">
+
+                    <div class="setting-row">
+                        <div style="display: flex; justify-content: space-between; width: 100%; font-size: 13px; font-weight: 600; margin-bottom: 8px;">
+                            <span>Display Brightness</span>
+                            <span id="brightLabel" style="color: var(--primary);">128</span>
+                        </div>
+                    </div>
+                    <input type="range" class="slider-input" min="0" max="255" value="128" id="brightSlider" oninput="updateBrightness(this.value)">
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-wifi"></i>
+                        <h2>Wi-Fi Credentials Setup</h2>
+                    </div>
+
+                    <input type="text" id="wifiSsid" class="input-text" placeholder="Wi-Fi SSID">
+                    <input type="password" id="wifiPass" class="input-text" placeholder="Wi-Fi Password">
+
+                    <button class="btn-action" onclick="saveWifiCredentials()">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Credentials to EVA NVS
+                    </button>
+                    <div style="height: 10px;"></div>
+                    <button class="btn-action btn-secondary" onclick="sendCommand('WIFI CONNECT')">
+                        <i class="fa-solid fa-arrows-rotate"></i> Trigger Immediate Wi-Fi Reconnect
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Console Log -->
+        <div class="terminal-card">
+            <div class="terminal-header" style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+                <span><i class="fa-solid fa-terminal"></i> Bluetooth Log</span>
+                <span onclick="clearTerminal()" style="cursor: pointer;"><i class="fa-solid fa-trash"></i> Clear</span>
+            </div>
+            <div class="terminal-logs" id="terminalLogs">
+                <div class="log-line">Ready to connect...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Engine -->
+    <script>
+        let port = null;
+        let writer = null;
+        let reader = null;
+        let isConnected = false;
+        let currentDriveState = 'S';
+        let driveRepeatTimer = null;
+        let activeDriveCmd = 'S';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            document.getElementById('timeInput').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('dateInput').value = now.toISOString().split('T')[0];
+            initJoystick();
+        });
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function log(msg, type = 'info') {
+            const container = document.getElementById('terminalLogs');
+            const line = document.createElement('div');
+            line.className = `log-line ${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminalLogs').innerHTML = '';
+        }
+
+        async function toggleConnect() {
+            if (isConnected) {
+                disconnect();
+                return;
+            }
+
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            try {
+                if (window.AndroidBluetooth) {
+                    const ok = window.AndroidBluetooth.connectDevice("EVA");
+                    if (ok) {
+                        setConnectedState(true);
+                        log('Connected Native SPP to EVA!', 'rx');
+                    } else {
+                        log('Pair EVA in phone Bluetooth settings first!', 'err');
+                        alert('Please pair "EVA" in phone Settings -> Bluetooth first!');
+                    }
+                } else if (isMobile && 'bluetooth' in navigator) {
+                    const device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: ['00001101-0000-1000-8000-00805f9b34fb']
+                    });
+                    setConnectedState(true);
+                    log(`Connected to Bluetooth: ${device.name}`, 'rx');
+                } else if ('serial' in navigator) {
+                    port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 });
+                    writer = port.writable.getWriter();
+                    setConnectedState(true);
+                    log('Connected via Web Serial OK!', 'rx');
+                    readSerialLoop();
+                } else {
+                    alert('Please use Google Chrome or Native Android App.');
+                }
+            } catch (err) {
+                log(`Connection failed: ${err.message}`, 'err');
+            }
+        }
+
+        function setConnectedState(status) {
+            isConnected = status;
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('connectText');
+            if (status) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Connect BLE';
+                stopDriveRepeat();
+            }
+        }
+
+        window.setConnected = function(status) {
+            setConnectedState(status);
+        };
+
+        async function disconnect() {
+            stopDriveRepeat();
+            if (window.AndroidBluetooth) {
+                window.AndroidBluetooth.disconnectDevice();
+            }
+            if (writer) { writer.releaseLock(); writer = null; }
+            if (port) { await port.close(); port = null; }
+            setConnectedState(false);
+            log('Disconnected from device', 'info');
+        }
+
+        async function readSerialLoop() {
+            while (port && port.readable) {
+                reader = port.readable.getReader();
+                try {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        const text = new TextDecoder().decode(value);
+                        log(`RX: ${text.trim()}`, 'rx');
+                    }
+                } catch (err) {
+                    log(`Read error: ${err.message}`, 'err');
+                    setConnectedState(false);
+                } finally {
+                    reader.releaseLock();
+                }
+            }
+        }
+
+        async function sendCommand(cmd) {
+            log(`TX: ${cmd}`, 'tx');
+            try {
+                if (window.AndroidBluetooth) {
+                    window.AndroidBluetooth.sendCommand(cmd);
+                } else if (writer) {
+                    const data = new TextEncoder().encode(cmd + '\n');
+                    await writer.write(data);
+                }
+            } catch (err) {
+                log(`TX Error: ${err.message}`, 'err');
+                setConnectedState(false);
+            }
+        }
+
+        function startDriveRepeat(char) {
+            stopDriveRepeat();
+            activeDriveCmd = char;
+            sendDrive(char, false);
+            if (char !== 'S') {
+                driveRepeatTimer = setInterval(() => {
+                    sendDrive(activeDriveCmd, true);
+                }, 120); // transmit continuously every 120ms while holding
+            }
+        }
+
+        function stopDriveRepeat() {
+            if (driveRepeatTimer) {
+                clearInterval(driveRepeatTimer);
+                driveRepeatTimer = null;
+            }
+            activeDriveCmd = 'S';
+        }
+
+        async function sendDrive(char, isRepeat = false) {
+            if (!isRepeat) {
+                currentDriveState = char;
+                log(`RC: '${char}'`, char === 'S' ? 'err' : 'tx');
+            }
+            try {
+                if (window.AndroidBluetooth) {
+                    window.AndroidBluetooth.sendDrive(char);
+                } else if (writer) {
+                    const data = new TextEncoder().encode(char);
+                    await writer.write(data);
+                }
+            } catch (err) {
+                log(`Drive Error: ${err.message}`, 'err');
+                setConnectedState(false);
+            }
+        }
+
+        function updateSpeed(val) {
+            document.getElementById('speedVal').textContent = val;
+            const presetChar = String(Math.round(((val - 120) / 135) * 9));
+            sendDrive(presetChar);
+        }
+
+        function updateVolume(val) {
+            document.getElementById('volLabel').textContent = val;
+            sendCommand(`V ${val}`);
+        }
+
+        function updateBrightness(val) {
+            document.getElementById('brightLabel').textContent = val;
+            sendCommand(`T ${val}`);
+        }
+
+        function syncCurrentDeviceTime() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const mon = String(now.getMonth() + 1).padStart(2, '0');
+            const yyyy = now.getFullYear();
+
+            sendCommand(`TIME ${hh}:${mm}`);
+            setTimeout(() => sendCommand(`DATE ${dd}/${mon}/${yyyy}`), 200);
+        }
+
+        function sendCustomTimeDate() {
+            const timeVal = document.getElementById('timeInput').value;
+            const dateVal = document.getElementById('dateInput').value;
+            if (timeVal) sendCommand(`TIME ${timeVal}`);
+            if (dateVal) {
+                const parts = dateVal.split('-');
+                if (parts.length === 3) sendCommand(`DATE ${parts[2]}/${parts[1]}/${parts[0]}`);
+            }
+        }
+
+        function setAlarm(enable) {
+            if (!enable) { sendCommand('ALARM OFF'); return; }
+            const timeVal = document.getElementById('alarmTimeInput').value;
+            if (timeVal) sendCommand(`ALARM ${timeVal} ON`);
+        }
+
+        function saveWifiCredentials() {
+            const ssid = document.getElementById('wifiSsid').value.trim();
+            const pass = document.getElementById('wifiPass').value.trim();
+            if (ssid) sendCommand(`WIFI ${ssid} ${pass}`);
+        }
+
+        function initJoystick() {
+            const base = document.getElementById('joyBase');
+            const stick = document.getElementById('joyStick');
+            const maxRadius = 70;
+            let active = false;
+
+            function handleMove(clientX, clientY) {
+                const rect = base.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                let dx = clientX - centerX;
+                let dy = clientY - centerY;
+                const distance = Math.hypot(dx, dy);
+
+                if (distance > maxRadius) {
+                    dx = (dx / distance) * maxRadius;
+                    dy = (dy / distance) * maxRadius;
+                }
+
+                stick.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                if (distance < 20) {
+                    if (activeDriveCmd !== 'S') startDriveRepeat('S');
+                    return;
+                }
+
+                const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+                let targetDir = 'S';
+                if (angle >= 67.5 && angle < 112.5)       targetDir = 'F';
+                else if (angle >= -112.5 && angle < -67.5) targetDir = 'B';
+                else if (angle >= 157.5 || angle < -157.5) targetDir = 'L';
+                else if (angle >= -22.5 && angle < 22.5)   targetDir = 'R';
+                else if (angle >= 112.5 && angle < 157.5)  targetDir = 'G';
+                else if (angle >= 22.5 && angle < 67.5)    targetDir = 'I';
+                else if (angle >= -157.5 && angle < -112.5)targetDir = 'H';
+                else if (angle >= -67.5 && angle < -22.5)  targetDir = 'J';
+
+                if (targetDir !== activeDriveCmd) {
+                    startDriveRepeat(targetDir);
+                }
+            }
+
+            function stopJoystick() {
+                if (active) {
+                    active = false;
+                    stick.style.transform = 'translate(0px, 0px)';
+                    startDriveRepeat('S');
+                }
+            }
+
+            base.addEventListener('touchstart', (e) => {
+                active = true;
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            });
+
+            window.addEventListener('touchmove', (e) => {
+                if (active) {
+                    e.preventDefault();
+                    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: false });
+
+            window.addEventListener('touchend', stopJoystick);
+            window.addEventListener('touchcancel', stopJoystick);
+
+            base.addEventListener('mousedown', (e) => {
+                active = true;
+                handleMove(e.clientX, e.clientY);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (active) handleMove(e.clientX, e.clientY);
+            });
+
+            window.addEventListener('mouseup', stopJoystick);
+        }
+    </script>
+</body>
+</html>

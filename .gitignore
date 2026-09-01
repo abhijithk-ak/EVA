@@ -1,22 +1,65 @@
-﻿PROJECT_DOCUMENTATION.md
+# Local secrets & runtime configuration
 Config.h
+**/Config.h
+src/Config.h
 *.local
 *.secret
 *.pem
 *.key
 .env
 .env.*
-.vscode/
-.idea/
-*.code-workspace
+
+# Arduino / ESP32 build artifacts
+*.hex
+*.bin
+*.elf
+*.map
+.pio/
+build/
+**/build/
+
+# Web Controller (Omitted because web browsers lack Classic Bluetooth SPP support)
+web_controller/
+
+# Android App build files & local configurations
 android_app/build/
 android_app/.gradle/
 android_app/local.properties
+android_app_src/build/
+android_app_src/app/build/
+android_app_src/.gradle/
+android_app_src/.idea/
+android_app_src/.cxx/
+android_app_src/app/.cxx/
+android_app_src/local.properties
+**/.gradle/
+**/.idea/
+*.iml
+*.keystore
+*.jks
+
+# Explicitly ensure pre-compiled APK in apk/ folder is tracked by git
+!apk/
+!apk/*.apk
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# Backups & Temporary folders
 backup/
 versions/
+tmp/
+*.tmp
+*.log
+
+# OS generated files
 .DS_Store
 Thumbs.db
+desktop.ini
 *.swp
-*.tmp
+
+# Python cache
 __pycache__/
 *.pyc
